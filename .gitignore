@@ -41,3 +41,5 @@ build/
 
 /release-
 release-*/
+.DS_Store
+bin/main/META-INF/services/edu.stevens.swe.research.java.cli.analyzer.spi.AnalyzerTask

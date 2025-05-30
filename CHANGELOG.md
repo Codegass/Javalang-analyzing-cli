@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2024-05-30
+
+### ✨ New Features
+- **JUnit Lifecycle Annotation Detection**: Added support for detecting and extracting JUnit lifecycle methods
+  - `@Before`/`@BeforeEach`: Methods executed before each test
+  - `@BeforeAll`/`@BeforeClass`: Methods executed once before all tests
+  - `@After`/`@AfterEach`: Methods executed after each test  
+  - `@AfterAll`/`@AfterClass`: Methods executed once after all tests
+  - Supports both JUnit 4 and JUnit 5 annotations
+  - Lifecycle method source code is included in JSON output with field names: `beforeMethods`, `beforeAllMethods`, `afterMethods`, `afterAllMethods`
+
+### 🔧 Technical Enhancements
+- Enhanced `TestCaseAnalyzer` with `extractLifecycleMethods()` function
+- Added `extractMethodSourceCode()` helper method for consistent source code extraction
+- Extended `AnalysisResult` class with new fields for lifecycle methods
+
+### 📋 Updated Output Format
+```json
+{
+  "beforeMethods": ["@BeforeEach source code"],
+  "beforeAllMethods": ["@BeforeAll/@BeforeClass source code"], 
+  "afterMethods": ["@AfterEach source code"],
+  "afterAllMethods": ["@AfterAll/@AfterClass source code"],
+  // ... existing fields
+}
+```
+
 ## [1.0.1] - 2024-05-30
 
 ### 🐛 Bug Fixes

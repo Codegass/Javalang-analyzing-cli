@@ -38,6 +38,10 @@ public class TestCaseAnalyzer {
         public String testClassName = "";
         public String testCaseName = "";
         public String projectName = "";
+        public List<String> beforeMethods = new ArrayList<>();
+        public List<String> beforeAllMethods = new ArrayList<>();
+        public List<String> afterMethods = new ArrayList<>();
+        public List<String> afterAllMethods = new ArrayList<>();
 
         // Helper to create the JSON filename
         public String getJsonFileName() {
@@ -88,6 +92,9 @@ public class TestCaseAnalyzer {
                 }
             }
         }
+
+        // Extract lifecycle methods (@Before, @BeforeAll, @After, @AfterAll) from the test class
+        extractLifecycleMethods(testCu, result, originalFileSource);
 
         // Perform DFS-like analysis for parsed_statements_sequence and production_function_implementations
         dfsAnalyze(testCu, testMethodDeclaration, 0, result, result.testClassName + "." + result.testCaseName + getParameters(testMethodDeclaration.resolveBinding()), originalFileSource);
@@ -431,5 +438,75 @@ public class TestCaseAnalyzer {
         }
         System.err.println("Warning: Source file not found for class " + className + " under roots: " + potentialSourceRoots);
         return null;
+    }
+
+    private void extractLifecycleMethods(CompilationUnit testCu, AnalysisResult result, String originalFileSource) {
+        // Get all type declarations in the compilation unit
+        for (Object type : testCu.types()) {
+            if (type instanceof TypeDeclaration) {
+                TypeDeclaration typeDecl = (TypeDeclaration) type;
+                
+                // Get all methods in the type
+                for (MethodDeclaration method : typeDecl.getMethods()) {
+                    // Check for lifecycle annotations
+                    for (Object modifier : method.modifiers()) {
+                        if (modifier instanceof Annotation) {
+                            Annotation annotation = (Annotation) modifier;
+                            String annotationName = annotation.getTypeName().getFullyQualifiedName();
+                            
+                            String methodSourceCode = extractMethodSourceCode(method, originalFileSource);
+                            
+                            // Check for @Before annotations (JUnit 4 and 5)
+                            if ("Before".equals(annotationName) || 
+                                "org.junit.Before".equals(annotationName) || 
+                                "org.junit.jupiter.api.BeforeEach".equals(annotationName) ||
+                                "BeforeEach".equals(annotationName)) {
+                                result.beforeMethods.add(methodSourceCode);
+                                System.out.println("  Found @Before method: " + method.getName().getIdentifier());
+                            }
+                            
+                            // Check for @BeforeAll annotations (JUnit 5)
+                            else if ("BeforeAll".equals(annotationName) || 
+                                     "org.junit.jupiter.api.BeforeAll".equals(annotationName) ||
+                                     "BeforeClass".equals(annotationName) ||
+                                     "org.junit.BeforeClass".equals(annotationName)) {
+                                result.beforeAllMethods.add(methodSourceCode);
+                                System.out.println("  Found @BeforeAll/@BeforeClass method: " + method.getName().getIdentifier());
+                            }
+                            
+                            // Check for @After annotations (JUnit 4 and 5)
+                            else if ("After".equals(annotationName) || 
+                                     "org.junit.After".equals(annotationName) || 
+                                     "org.junit.jupiter.api.AfterEach".equals(annotationName) ||
+                                     "AfterEach".equals(annotationName)) {
+                                result.afterMethods.add(methodSourceCode);
+                                System.out.println("  Found @After method: " + method.getName().getIdentifier());
+                            }
+                            
+                            // Check for @AfterAll annotations (JUnit 5)
+                            else if ("AfterAll".equals(annotationName) || 
+                                     "org.junit.jupiter.api.AfterAll".equals(annotationName) ||
+                                     "AfterClass".equals(annotationName) ||
+                                     "org.junit.AfterClass".equals(annotationName)) {
+                                result.afterAllMethods.add(methodSourceCode);
+                                System.out.println("  Found @AfterAll/@AfterClass method: " + method.getName().getIdentifier());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private String extractMethodSourceCode(MethodDeclaration method, String originalFileSource) {
+        int startPos = method.getStartPosition();
+        int length = method.getLength();
+        
+        if (startPos >= 0 && length > 0 && (startPos + length) <= originalFileSource.length()) {
+            return originalFileSource.substring(startPos, startPos + length);
+        } else {
+            System.err.println("Warning: Invalid start/length for lifecycle method source code extraction. Method: " + method.getName().getIdentifier());
+            return "// Error extracting source code for " + method.getName().getIdentifier();
+        }
     }
 } 
