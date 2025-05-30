@@ -1,10 +1,15 @@
 rootProject.name = 'Javalang-analyzing-cli'
 
+// Include parser-core as a local subproject (commented out for release builds)
+// include ':parser-core'
+// project(':parser-core').projectDir = new File('../parser-core')
+
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
         mavenCentral()
         maven { url = uri("https://jitpack.io") }
+        maven { url = uri("https://repo.gradle.org/gradle/libs-releases") }
     }
 }
 

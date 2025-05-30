@@ -1,5 +1,7 @@
 plugins {
     id 'java'
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 java {
@@ -10,15 +12,33 @@ java {
     }
 }
 
+application {
+    mainClass = 'edu.stevens.swe.research.java.cli.Main'
+}
+
 group = 'edu.stevens'
-version = '1.0-SNAPSHOT'
+version = '1.0.0'
 
 dependencies {
-    implementation("com.github.Codegass:parser-core:main")
+    // Use JitPack dependency for release builds
+    implementation("com.github.Codegass:parser-core:main-SNAPSHOT")
+    // implementation project(':parser-core')  // For local development
+    implementation 'info.picocli:picocli:4.7.0'
+    implementation 'org.eclipse.jdt:org.eclipse.jdt.core:3.37.0'
+    implementation 'com.google.code.gson:gson:2.11.0'
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
 test {
     useJUnitPlatform()
+}
+
+shadowJar {
+    archiveBaseName.set('Javalang-analyzing-cli')
+    archiveClassifier.set('all')
+    mergeServiceFiles()
+    manifest {
+        attributes 'Main-Class': 'edu.stevens.swe.research.java.cli.Main'
+    }
 }
