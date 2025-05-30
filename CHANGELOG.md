@@ -16,6 +16,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports both JUnit 4 and JUnit 5 annotations
   - Lifecycle method source code is included in JSON output with field names: `beforeMethods`, `beforeAllMethods`, `afterMethods`, `afterAllMethods`
 
+- **🏗️ Mono Repository (Mono Repo) Support**: Major enhancement for multi-module projects
+  - **Recursive Test Discovery**: Automatically finds all test directories across the entire project tree
+  - **Multi-Module Detection**: Supports Maven and Gradle multi-module project structures
+  - **Smart Filtering**: Intelligently skips build output directories (`/build/`, `/target/`, `/bin/`, `/out/`)
+  - **Nested Directory Handling**: Removes duplicate/nested test directories, keeping only the most specific ones
+  - **Enhanced Output**: Shows count of discovered test directories in summary
+  - **Backward Compatible**: Single-module projects continue to work as before
+
+### 🔧 Technical Improvements
+- Enhanced `ParseTestCaseToLlmContextTask` with `findAllTestDirectories()` method
+- Improved `isTestDirectory()` logic with comprehensive filtering rules
+- Added deduplication algorithm to prevent processing nested test directories
+- Better error handling for individual module failures in mono repos
+
+### 📋 Supported Project Structures
+- Single module: `project-root/src/test/java/`
+- Multi-module Maven: `module-*/src/test/java/`
+- Multi-module Gradle: `subproject-*/src/test/java/`
+- Nested modules: `backend/api/src/test/java/`, `backend/core/src/test/java/`
+
+### 🚀 Performance
+- Processes multiple test directories in sequence
+- Maintains individual module error isolation
+- Optimized directory traversal with early filtering
+
 ### 🔧 Technical Enhancements
 - Enhanced `TestCaseAnalyzer` with `extractLifecycleMethods()` function
 - Added `extractMethodSourceCode()` helper method for consistent source code extraction

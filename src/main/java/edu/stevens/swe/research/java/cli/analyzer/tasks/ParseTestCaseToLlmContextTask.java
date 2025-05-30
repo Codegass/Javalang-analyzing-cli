@@ -60,74 +60,73 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
             return new TaskResult(projectCtx.getProjectPath().toString(), TASK_NAME + " [Failed to create output directory]");
         }
 
-        // Heuristic: Look for test files in src/test/java
-        // TODO: Make source roots configurable via ProjectCtx
-        Path testSourceRoot = projectCtx.getProjectPath().resolve("src").resolve("test").resolve("java");
-        if (!Files.exists(testSourceRoot)){
-            System.out.println("Test source root not found: " + testSourceRoot + ". Skipping task.");
-             return new TaskResult(projectCtx.getProjectPath().toString(), TASK_NAME + " [Test source root not found]");
+        // Find all test directories in the project (supports mono repo)
+        List<Path> testSourceRoots = findAllTestDirectories(projectCtx.getProjectPath());
+        if (testSourceRoots.isEmpty()) {
+            System.out.println("No test source roots found in project: " + projectCtx.getProjectPath() + ". Skipping task.");
+            return new TaskResult(projectCtx.getProjectPath().toString(), TASK_NAME + " [No test source roots found]");
         }
 
-        try (Stream<Path> javaFiles = Files.walk(testSourceRoot).filter(Files::isRegularFile).filter(path -> path.toString().endsWith(".java"))) {
-            for (Path javaFile : javaFiles.collect(java.util.stream.Collectors.toList())) { // Collect to avoid ConcurrentModificationException if parsing modifies anything globally
-                System.out.println("Processing file: " + javaFile);
-                try {
-                    AstParserUtil.ParseResult parseResult = astParserUtil.parse(javaFile.toString());
-                    CompilationUnit cu = parseResult.compilationUnit;
-                    String originalSource = parseResult.originalSource;
+        System.out.println("Found " + testSourceRoots.size() + " test source directories:");
+        for (Path testRoot : testSourceRoots) {
+            System.out.println("  - " + testRoot);
+        }
 
-                    if (cu == null) {
-                        System.err.println("Failed to parse file: " + javaFile);
-                        continue;
-                    }
+        // Process all test directories
+        for (Path testSourceRoot : testSourceRoots) {
+            try (Stream<Path> javaFiles = Files.walk(testSourceRoot)
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.toString().endsWith(".java"))) {
+                
+                for (Path javaFile : javaFiles.collect(java.util.stream.Collectors.toList())) {
+                    System.out.println("Processing file: " + javaFile);
+                    try {
+                        AstParserUtil.ParseResult parseResult = astParserUtil.parse(javaFile.toString());
+                        CompilationUnit cu = parseResult.compilationUnit;
+                        String originalSource = parseResult.originalSource;
 
-                    MethodVisitor methodVisitor = new MethodVisitor();
-                    cu.accept(methodVisitor);
+                        if (cu == null) {
+                            System.err.println("Failed to parse file: " + javaFile);
+                            continue;
+                        }
 
-                    for (MethodDeclaration md : methodVisitor.getMethods()) {
-                        if (isTestMethod(md)) {
-                            testCasesFound++;
-                            System.out.println("  Found test method: " + md.getName().getIdentifier());
-                            TestCaseAnalyzer.AnalysisResult analysisResult = testCaseAnalyzer.analyzeTestCase(cu, md, originalSource);
-                            
-                            String jsonFileName = analysisResult.getJsonFileName().replaceAll("[^a-zA-Z0-9.-]", "_") + ".json"; // Sanitize filename
-                            Path outputPath = outputDir.resolve(jsonFileName);
+                        MethodVisitor methodVisitor = new MethodVisitor();
+                        cu.accept(methodVisitor);
 
-                            try (FileWriter writer = new FileWriter(outputPath.toFile())) {
-                                gson.toJson(analysisResult, writer);
-                                processedFiles.add(outputPath.toString());
-                                System.out.println("    Successfully wrote: " + outputPath);
-                            } catch (IOException e) {
-                                System.err.println("    Error writing JSON for " + analysisResult.getJsonFileName() + ": " + e.getMessage());
+                        for (MethodDeclaration md : methodVisitor.getMethods()) {
+                            if (isTestMethod(md)) {
+                                testCasesFound++;
+                                System.out.println("  Found test method: " + md.getName().getIdentifier());
+                                TestCaseAnalyzer.AnalysisResult analysisResult = testCaseAnalyzer.analyzeTestCase(cu, md, originalSource);
+                                
+                                String jsonFileName = analysisResult.getJsonFileName().replaceAll("[^a-zA-Z0-9.-]", "_") + ".json"; // Sanitize filename
+                                Path outputPath = outputDir.resolve(jsonFileName);
+
+                                try (FileWriter writer = new FileWriter(outputPath.toFile())) {
+                                    gson.toJson(analysisResult, writer);
+                                    processedFiles.add(outputPath.toString());
+                                    System.out.println("    Successfully wrote: " + outputPath);
+                                } catch (IOException e) {
+                                    System.err.println("    Error writing JSON for " + analysisResult.getJsonFileName() + ": " + e.getMessage());
+                                }
                             }
                         }
+                    } catch (IOException | ProjectDetectionException e) {
+                        System.err.println("Error processing file " + javaFile + ": " + e.getMessage());
                     }
-                } catch (IOException | ProjectDetectionException e) {
-                    System.err.println("Error processing file " + javaFile + ": " + e.getMessage());
                 }
+            } catch (IOException e) {
+                System.err.println("Error walking through test source files in " + testSourceRoot + ": " + e.getMessage());
             }
-        } catch (IOException e) {
-            System.err.println("Error walking through test source files: " + e.getMessage());
-            return new TaskResult(projectCtx.getProjectPath().toString(), TASK_NAME + " [Error reading source files]");
         }
 
         // TaskResult might need to be enhanced to store these details
         // For now, just returning a basic success/failure message based on file processing.
-        String summaryMessage = String.format("%s: Found %d test cases, Generated %d JSON files. Output dir: %s", 
-                                        TASK_NAME, testCasesFound, processedFiles.size(), outputDir.toString());
+        String summaryMessage = String.format("%s: Found %d test cases in %d directories, Generated %d JSON files. Output dir: %s", 
+                                        TASK_NAME, testCasesFound, testSourceRoots.size(), processedFiles.size(), outputDir.toString());
         boolean success = !processedFiles.isEmpty() || testCasesFound == 0; // Consider success if files were made or no tests to process
         
         TaskResult result = new TaskResult(projectCtx.getProjectPath().toString(), summaryMessage);
-        // result.addDetail("Test cases found", String.valueOf(testCasesFound));
-        // result.addDetail("JSON files generated", String.valueOf(processedFiles.size()));
-        // result.addDetail("Output directory", outputDir.toString());
-        // if (processedFiles.isEmpty() && testCasesFound > 0) {
-        //      result.addDetail("Status", "Completed with errors (no files generated despite finding tests).");
-        // } else if (processedFiles.isEmpty() && testCasesFound == 0) {
-        //      result.addDetail("Status", "Completed (no test cases found).");
-        // } else {
-        //     result.addDetail("Status", "Completed successfully.");
-        // }
         System.out.println(summaryMessage);
         return result;
     }
@@ -158,5 +157,88 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
         }
         // Optionally, add checks for public void methods starting with "test" as a convention, if desired.
         return isTest;
+    }
+
+    /**
+     * Recursively find all test directories in the project.
+     * Supports mono repo by searching for all directories matching test patterns.
+     */
+    private List<Path> findAllTestDirectories(Path projectRoot) {
+        List<Path> testDirectories = new ArrayList<>();
+        
+        try (Stream<Path> paths = Files.walk(projectRoot)) {
+            List<Path> candidateDirectories = paths.filter(Files::isDirectory)
+                 .filter(this::isTestDirectory)
+                 .collect(java.util.stream.Collectors.toList());
+            
+            // Remove nested directories - only keep the most specific src/test/java directories
+            for (Path candidate : candidateDirectories) {
+                boolean isNested = false;
+                for (Path other : candidateDirectories) {
+                    if (!candidate.equals(other) && candidate.startsWith(other)) {
+                        isNested = true;
+                        break;
+                    }
+                }
+                if (!isNested) {
+                    testDirectories.add(candidate);
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error walking project directory: " + e.getMessage());
+        }
+        
+        return testDirectories;
+    }
+
+    /**
+     * Check if a directory is a test directory based on common patterns.
+     */
+    private boolean isTestDirectory(Path dir) {
+        String dirName = dir.getFileName().toString();
+        String pathString = dir.toString();
+        
+        // Skip hidden directories and common non-source directories
+        if (dirName.startsWith(".") || 
+            pathString.contains("/.") ||
+            pathString.contains("/target/") ||
+            pathString.contains("/build/") ||
+            pathString.contains("/bin/") ||
+            pathString.contains("/out/") ||
+            pathString.contains("/node_modules/") ||
+            pathString.contains("/.git/") ||
+            pathString.contains("/.gradle/") ||
+            pathString.contains("/.m2/")) {
+            return false;
+        }
+        
+        // Standard Maven/Gradle test directory patterns
+        if (pathString.endsWith("/src/test/java") || 
+            pathString.endsWith("\\src\\test\\java")) {
+            return true;
+        }
+        
+        // Additional test directory patterns for different project structures
+        // Be more specific to avoid false positives
+        if (pathString.contains("/src/test/") && pathString.endsWith("/java") && 
+            !pathString.contains("/build/") && !pathString.contains("/target/")) {
+            return true;
+        }
+        
+        // Check for Maven/Gradle multi-module patterns like module-name/src/test/java
+        if (dirName.equals("java")) {
+            Path parent = dir.getParent();
+            if (parent != null && parent.getFileName().toString().equals("test")) {
+                Path srcParent = parent.getParent();
+                if (srcParent != null && srcParent.getFileName().toString().equals("src")) {
+                    // Ensure it's not in a build directory
+                    if (!pathString.contains("/build/") && !pathString.contains("/target/") && !pathString.contains("/bin/")) {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        return false;
     }
 } 
