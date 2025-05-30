@@ -166,26 +166,10 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
     private List<Path> findAllTestDirectories(Path projectRoot) {
         List<Path> testDirectories = new ArrayList<>();
         
-        System.out.println("DEBUG: Starting directory search from: " + projectRoot);
-        System.out.println("DEBUG: Project root exists: " + Files.exists(projectRoot));
-        System.out.println("DEBUG: Project root is directory: " + Files.isDirectory(projectRoot));
-        System.out.println("DEBUG: Project root is readable: " + Files.isReadable(projectRoot));
-        
-        // Check if basic src/test/java structure exists
-        Path srcTestJava = projectRoot.resolve("src").resolve("test").resolve("java");
-        System.out.println("DEBUG: Standard test path: " + srcTestJava);
-        System.out.println("DEBUG: Standard test path exists: " + Files.exists(srcTestJava));
-        System.out.println("DEBUG: Standard test path is directory: " + Files.isDirectory(srcTestJava));
-        
         try (Stream<Path> paths = Files.walk(projectRoot)) {
             List<Path> candidateDirectories = paths.filter(Files::isDirectory)
                  .filter(this::isTestDirectory)
                  .collect(java.util.stream.Collectors.toList());
-            
-            System.out.println("DEBUG: Found " + candidateDirectories.size() + " candidate test directories");
-            for (Path candidate : candidateDirectories) {
-                System.out.println("DEBUG: Candidate: " + candidate);
-            }
             
             // Remove nested directories - only keep the most specific src/test/java directories
             for (Path candidate : candidateDirectories) {
@@ -193,21 +177,17 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
                 for (Path other : candidateDirectories) {
                     if (!candidate.equals(other) && candidate.startsWith(other)) {
                         isNested = true;
-                        System.out.println("DEBUG: " + candidate + " is nested under " + other + ", skipping");
                         break;
                     }
                 }
                 if (!isNested) {
                     testDirectories.add(candidate);
-                    System.out.println("DEBUG: Adding final test directory: " + candidate);
                 }
             }
         } catch (IOException e) {
             System.err.println("Error walking project directory: " + e.getMessage());
-            e.printStackTrace();
         }
         
-        System.out.println("DEBUG: Final test directories count: " + testDirectories.size());
         return testDirectories;
     }
 
@@ -221,13 +201,6 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
         // Normalize path separators for cross-platform compatibility
         String normalizedPath = pathString.replace('\\', '/');
         
-        // Debug output for troubleshooting
-        if (pathString.contains("test") && pathString.contains("java")) {
-            System.out.println("DEBUG: Checking potential test directory: " + pathString);
-            System.out.println("DEBUG: Normalized path: " + normalizedPath);
-            System.out.println("DEBUG: Dir name: " + dirName);
-        }
-        
         // Skip hidden directories and common non-source directories
         if (dirName.startsWith(".") || 
             normalizedPath.contains("/.") ||
@@ -239,15 +212,11 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
             normalizedPath.contains("/.git/") ||
             normalizedPath.contains("/.gradle/") ||
             normalizedPath.contains("/.m2/")) {
-            if (pathString.contains("test") && pathString.contains("java")) {
-                System.out.println("DEBUG: Skipped due to filter: " + normalizedPath);
-            }
             return false;
         }
         
         // Standard Maven/Gradle test directory patterns (cross-platform)
         if (normalizedPath.endsWith("/src/test/java")) {
-            System.out.println("DEBUG: Found test directory (standard pattern): " + normalizedPath);
             return true;
         }
         
@@ -255,7 +224,6 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
         // Be more specific to avoid false positives
         if (normalizedPath.contains("/src/test/") && normalizedPath.endsWith("/java") && 
             !normalizedPath.contains("/build/") && !normalizedPath.contains("/target/")) {
-            System.out.println("DEBUG: Found test directory (extended pattern): " + normalizedPath);
             return true;
         }
         
@@ -267,7 +235,6 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
                 if (srcParent != null && srcParent.getFileName().toString().equals("src")) {
                     // Ensure it's not in a build directory (using normalized path)
                     if (!normalizedPath.contains("/build/") && !normalizedPath.contains("/target/") && !normalizedPath.contains("/bin/")) {
-                        System.out.println("DEBUG: Found test directory (multi-module pattern): " + normalizedPath);
                         return true;
                     }
                 }
