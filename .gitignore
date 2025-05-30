@@ -38,3 +38,6 @@ build/
 .java-version
 
 .cursor/
+
+/release-
+release-1.0.0/
