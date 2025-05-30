@@ -45,7 +45,7 @@ public class TestCaseAnalyzer {
 
         // Helper to create the JSON filename
         public String getJsonFileName() {
-            return projectName + ":" + testClassName + ":" + testCaseName + ".json";
+            return projectName + ":" + testClassName + ":" + testCaseName;
         }
     }
 

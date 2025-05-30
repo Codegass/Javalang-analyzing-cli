@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2024-05-30
+
+### 🐛 Bug Fixes
+- **Duplicate JSON File Extension**: Fixed issue where output files had double `.json.json` extension
+  - Problem: `getJsonFileName()` was returning filename with `.json` extension, then `.json` was added again during file creation
+  - Solution: Modified `getJsonFileName()` to return base filename without extension
+  - Files now correctly named as `project_class_method.json` instead of `project_class_method.json.json`
+
+### 🔧 Technical Details
+- Modified `TestCaseAnalyzer.AnalysisResult.getJsonFileName()` method
+- Maintains backward compatibility - no changes to JSON content format
+- File sanitization (replacing invalid characters with `_`) still works correctly
+
 ## [1.1.0] - 2024-05-30
 
 ### ✨ New Features

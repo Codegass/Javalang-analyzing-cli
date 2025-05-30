@@ -15,7 +15,7 @@ import edu.stevens.swe.research.java.cli.analyzer.TaskManager;
 import edu.stevens.swe.research.java.cli.analyzer.TaskResult;
 import edu.stevens.swe.research.java.cli.analyzer.ResultFormatter;
 
-@Command(name = "analyzer", mixinStandardHelpOptions = true, version = "Analyzer CLI 1.1",
+@Command(name = "analyzer", mixinStandardHelpOptions = true, version = "Analyzer CLI 1.1.1",
         description = "Analyzes Java source code based on specified tasks.")
 public class Main implements Callable<Integer> {
 
