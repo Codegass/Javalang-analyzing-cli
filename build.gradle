@@ -17,7 +17,7 @@ application {
 }
 
 group = 'edu.stevens'
-version = '1.0.0'
+version = '1.0.1'
 
 dependencies {
     // Use JitPack dependency for release builds

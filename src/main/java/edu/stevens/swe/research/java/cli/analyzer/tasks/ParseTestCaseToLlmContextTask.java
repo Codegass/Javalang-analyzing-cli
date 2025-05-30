@@ -45,9 +45,13 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
         List<String> processedFiles = new ArrayList<>();
         int testCasesFound = 0;
 
-        // Define output directory for JSON files - TEMPORARILY HARDCODED FOR TESTING
-        Path outputDir = Paths.get("/Users/chenhaowei/Documents/research-related-data/commons-cli/results");
-        System.out.println("[TESTING] Using hardcoded output directory: " + outputDir);
+        // Get output directory from ProjectCtx
+        Path outputDir = projectCtx.getOutputDirectory();
+        if (outputDir == null) {
+            // Fallback to default if not set (should not happen with current implementation)
+            outputDir = projectCtx.getProjectPath().resolve("AAA");
+        }
+        System.out.println("Using output directory: " + outputDir);
 
         try {
             Files.createDirectories(outputDir);

@@ -40,6 +40,9 @@ public class Main implements Callable<Integer> {
     @Option(names = {"--output-file"}, description = "Path to the output file.")
     private File outputFile;
 
+    @Option(names = {"--output-dir"}, description = "Directory for task output files. Default: <project>/AAA")
+    private File outputDir;
+
     @Option(names = {"--plugin-path"}, description = "Path to the directory containing plugin JARs.")
     private File pluginPath;
 
@@ -69,8 +72,16 @@ public class Main implements Callable<Integer> {
             // (e.g., if plugins are not on the main classpath)
         }
 
+        // Set default output directory if not specified
+        if (outputDir == null) {
+            outputDir = new File(projectDir, "AAA");
+        }
+        System.out.println("Output Directory: " + outputDir.getAbsolutePath());
+
         // 1. Create ProjectCtx
         ProjectCtx projectCtx = new ProjectCtx(projectDir.toPath(), language);
+        // Set the output directory in ProjectCtx
+        projectCtx.setOutputDirectory(outputDir.toPath());
         // TODO: Populate ProjectCtx further from configFile if provided
         // For example, load source roots, classpath, specific task configs etc.
 
