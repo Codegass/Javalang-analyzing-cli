@@ -2,14 +2,14 @@
 
 > A powerful Java code analysis command-line tool designed for research and code quality analysis.
 
-[![License](https://img.shields.io/github/license/your-username/Javalang-analyzing-cli)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/your-username/Javalang-analyzing-cli)](https://github.com/your-username/Javalang-analyzing-cli/releases)
+[![License](https://img.shields.io/github/license/codegass/Javalang-analyzing-cli)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/codegass/Javalang-analyzing-cli)](https://github.com/codegass/Javalang-analyzing-cli/releases)
 
 ## 🚀 Quick Start
 
 ### Download
 
-Download the latest `Javalang-analyzing-cli-all.jar` from the [Releases](https://github.com/your-username/Javalang-analyzing-cli/releases) page.
+Download the latest `Javalang-analyzing-cli-all.jar` from the [Releases](https://github.com/codegass/Javalang-analyzing-cli/releases) page.
 
 This is a **Fat JAR** that includes all dependencies - no additional installation required.
 
@@ -230,4 +230,4 @@ Issues and Pull Requests are welcome!
 
 ## 📞 Support
 
-For issues, please report them in [GitHub Issues](https://github.com/your-username/Javalang-analyzing-cli/issues).
+For issues, please report them in [GitHub Issues](https://github.com/codegass/Javalang-analyzing-cli/issues).
