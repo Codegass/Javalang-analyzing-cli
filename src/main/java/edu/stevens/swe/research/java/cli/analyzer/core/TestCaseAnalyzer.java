@@ -390,12 +390,16 @@ public class TestCaseAnalyzer {
     // Heuristics to determine if a path is production or test code.
     // These should ideally be configurable or more robustly determined from ProjectCtx.
     private boolean isProductionCode(String filePath) {
-        return filePath.contains(File.separator + "src" + File.separator + "main" + File.separator) || 
-               !filePath.contains(File.separator + "src" + File.separator + "test" + File.separator); // Assume prod if not explicitly test
+        // Normalize path separators for cross-platform compatibility
+        String normalizedPath = filePath.replace('\\', '/');
+        return normalizedPath.contains("/src/main/") || 
+               !normalizedPath.contains("/src/test/"); // Assume prod if not explicitly test
     }
 
     private boolean isTestCode(String filePath) {
-        return filePath.contains(File.separator + "src" + File.separator + "test" + File.separator);
+        // Normalize path separators for cross-platform compatibility
+        String normalizedPath = filePath.replace('\\', '/');
+        return normalizedPath.contains("/src/test/");
     }
     
     // Utility from old MethodAnalyzer to find source file for a class.
@@ -407,11 +411,11 @@ public class TestCaseAnalyzer {
         // Attempt to find in standard main/java or test/java if sourceRootPath is project root
         // This is a heuristic. ProjectCtx should ideally provide specific source roots.
         List<Path> potentialSourceRoots = new ArrayList<>();
-        if (Files.isDirectory(effectiveSourceRoot.resolve("src/main/java"))) {
-            potentialSourceRoots.add(effectiveSourceRoot.resolve("src/main/java"));
+        if (Files.isDirectory(effectiveSourceRoot.resolve("src").resolve("main").resolve("java"))) {
+            potentialSourceRoots.add(effectiveSourceRoot.resolve("src").resolve("main").resolve("java"));
         }
-        if (Files.isDirectory(effectiveSourceRoot.resolve("src/test/java"))) {
-            potentialSourceRoots.add(effectiveSourceRoot.resolve("src/test/java"));
+        if (Files.isDirectory(effectiveSourceRoot.resolve("src").resolve("test").resolve("java"))) {
+            potentialSourceRoots.add(effectiveSourceRoot.resolve("src").resolve("test").resolve("java"));
         }
         // If no sub-source roots found, use the provided sourceRootPath directly
         if (potentialSourceRoots.isEmpty()) {
