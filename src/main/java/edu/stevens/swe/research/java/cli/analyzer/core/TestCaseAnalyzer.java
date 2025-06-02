@@ -405,7 +405,36 @@ public class TestCaseAnalyzer {
     // Utility from old MethodAnalyzer to find source file for a class.
     // This might need to be made more robust or use ProjectCtx information.
     public String getSourceFilePathForClass(String className, String sourceRootPath) {
-        String classPath = className.replace('.', File.separatorChar) + ".java";
+        // Handle inner classes: for inner classes like "com.example.Outer.Inner", 
+        // we need to find the file for "com.example.Outer.java"
+        String outerClassName = className;
+        if (className.contains(".") && Character.isUpperCase(className.charAt(className.lastIndexOf('.') + 1))) {
+            // This might be an inner class. Find the outer class.
+            // Look for pattern like "package.Class.InnerClass" where the last part starts with uppercase
+            String[] parts = className.split("\\.");
+            StringBuilder outerClassBuilder = new StringBuilder();
+            
+            for (int i = 0; i < parts.length; i++) {
+                if (i > 0 && Character.isUpperCase(parts[i].charAt(0))) {
+                    // Found first part that starts with uppercase, this might be the start of class names
+                    // Check if we already have a class name (outer class)
+                    if (outerClassBuilder.length() > 0 && Character.isUpperCase(parts[i-1].charAt(0))) {
+                        // Previous part was also a class name, so current part is inner class
+                        break;
+                    }
+                }
+                
+                if (outerClassBuilder.length() > 0) {
+                    outerClassBuilder.append(".");
+                }
+                outerClassBuilder.append(parts[i]);
+            }
+            outerClassName = outerClassBuilder.toString();
+        }
+        
+        System.out.println("DEBUG: Looking for source file - Original class: " + className + ", Outer class: " + outerClassName);
+        
+        String classPath = outerClassName.replace('.', File.separatorChar) + ".java";
         Path effectiveSourceRoot = Paths.get(sourceRootPath); 
 
         // Attempt to find in standard main/java or test/java if sourceRootPath is project root
@@ -434,13 +463,14 @@ public class TestCaseAnalyzer {
                         .collect(Collectors.toList());
                 if (!foundPaths.isEmpty()) {
                     // Prefer paths that match more closely or handle multiple matches if necessary
+                    System.out.println("DEBUG: Found source file: " + foundPaths.get(0).toString());
                     return foundPaths.get(0).toString(); 
                 }
             } catch (IOException e) {
                 System.err.println("Error walking path: " + root + " : " + e.getMessage());
             }
         }
-        System.err.println("Warning: Source file not found for class " + className + " under roots: " + potentialSourceRoots);
+        System.err.println("Warning: Source file not found for class " + className + " (searched as " + outerClassName + ") under roots: " + potentialSourceRoots);
         return null;
     }
 

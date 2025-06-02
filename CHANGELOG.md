@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2025-06-02
+
+### 🐛 Critical Bug Fix - Inner Class Source Resolution
+- **Fixed SOURCE_FILE_NOT_FOUND for Inner Classes**: Major fix for source file detection of inner classes
+  - **Problem**: Classes like `org.apache.commons.cli.HelpFormatter.Builder` were causing SOURCE_FILE_NOT_FOUND errors
+  - **Root Cause**: Method was searching for `org/apache/commons/cli/HelpFormatter/Builder.java` instead of `org/apache/commons/cli/HelpFormatter.java`
+  - **Solution**: Enhanced `getSourceFilePathForClass()` to detect inner classes and map them to their outer class source files
+  - **Impact**: Dramatically reduces SOURCE_FILE_NOT_FOUND errors in projects with inner classes
+
+### 🔧 Technical Improvements
+- **Smart Inner Class Detection**: Added logic to identify inner classes by uppercase naming patterns
+- **Outer Class Mapping**: Automatically strips inner class portions to find the correct source file
+- **Enhanced Debug Logging**: Added detailed logging for source file resolution process
+
+### 🧪 Verification
+- **commons-cli Project**: Tested on Apache Commons CLI project - eliminated most SOURCE_FILE_NOT_FOUND errors
+- **Before**: Multiple SOURCE_FILE_NOT_FOUND errors for `HelpFormatter.Builder` methods  
+- **After**: All inner class methods now correctly resolve to their source files
+
+This fix significantly improves analysis accuracy for projects using inner classes, which are common in Java projects.
+
 ## [1.3.1] - 2025-06-02
 
 ### 🐛 Bug Fixes - Windows Path Compatibility
