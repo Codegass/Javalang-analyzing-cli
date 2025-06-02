@@ -16,6 +16,7 @@ public class ProjectCtx {
     private Path jdkPath; // Optional, might be inferred or configured
     private Path tempDir;
     private Path outputDirectory; // Directory for task output files
+    private LogData logData; // Added for logging support
 
     public ProjectCtx(Path projectPath, String language) {
         this.projectPath = projectPath;
@@ -82,6 +83,14 @@ public class ProjectCtx {
 
     public void setOutputDirectory(Path outputDirectory) {
         this.outputDirectory = outputDirectory;
+    }
+
+    public LogData getLogData() {
+        return logData;
+    }
+
+    public void setLogData(LogData logData) {
+        this.logData = logData;
     }
 
     // TODO: Add methods to help resolve files or paths within the project context

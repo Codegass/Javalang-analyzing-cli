@@ -5,6 +5,104 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2025-06-02
+
+### 🐛 Bug Fixes - Windows Path Compatibility
+- **Log File Path Handling**: Fixed Windows path compatibility issues in logging system
+  - **Relative Path Recording**: Changed from absolute to relative paths in unresolved case logs
+  - **Cross-platform File Names**: Enhanced filename sanitization to handle Windows path separators
+  - **Log File Creation**: Added project name sanitization for safe log file creation
+  
+### 🔧 Technical Improvements  
+- **Enhanced Filename Sanitization**: Updated regex pattern from `[^a-zA-Z0-9.-]` to `[^a-zA-Z0-9._-]` 
+- **Relative Path Storage**: Log entries now store `src/test/java/com/example/Test.java` instead of full paths
+- **Project Name Cleaning**: Automatic removal of invalid characters from project names in log filenames
+
+### 🌍 Cross-Platform Benefits
+- ✅ **Windows**: Log files now correctly handle `C:\Users\...` style paths  
+- ✅ **Unix/Linux/macOS**: Maintains full backward compatibility
+- ✅ **JSON Compatibility**: Eliminates escaping issues with backslashes in JSON output
+
+### 📋 Log File Improvements
+```json
+{
+  "unresolvedCases": [
+    {
+      "fileName": "src/test/java/com/example/Test.java",  // ✅ Relative path
+      "className": "com.example.Test",
+      "methodName": "testMethod"
+    }
+  ]
+}
+```
+
+**Before (v1.3.0)**: `"fileName": "C:\\Users\\user\\project\\src\\test\\java\\Test.java"` ❌  
+**After (v1.3.1)**: `"fileName": "src/test/java/Test.java"` ✅
+
+## [1.3.0] - 2025-06-02
+
+### 🚀 Major Features
+- **Runtime Logging System**: Added comprehensive analysis session logging
+  - **Execution Time Tracking**: Automatic recording of start time, end time, and duration
+  - **Test Case Statistics**: Total and processed test case counts
+  - **Unresolved Invocation Detection**: Automatic detection and detailed tracking of unresolved method calls
+  - **Structured Log Output**: JSON format log files saved to `<output_dir>/<project_name>-log.json`
+
+### ✨ New Features
+- **LogData Class**: Dedicated data structure for logging analysis session information
+- **Smart Status Tracking**: RUNNING → COMPLETED/FAILED/INTERRUPTED status progression
+- **Unresolved Code Analysis**: Identifies and catalogues:
+  - `UNRESOLVED_INVOCATION` - Method calls that couldn't be resolved
+  - `UNRESOLVED_CONSTRUCTOR` - Constructor calls that couldn't be resolved
+  - `UNRESOLVED_METHOD_REF` - Method references that couldn't be resolved
+  - `METHOD_NOT_FOUND_IN_SOURCE` - Methods not found in source code
+  - `SOURCE_FILE_NOT_FOUND` - Source files that couldn't be located
+- **Graceful Interruption Handling**: Shutdown hooks to save logs even when interrupted
+- **Project Context Integration**: LogData integrated into ProjectCtx for task access
+
+### 🔧 Technical Improvements
+- **Exception Handling**: Robust error handling with detailed error message logging
+- **Cross-platform Compatibility**: All logging functionality works on Windows/Linux/macOS
+- **Memory Efficient**: Streaming JSON output without memory overhead
+- **Thread Safe**: Volatile flags for proper multi-threading support
+
+### 📊 Log File Structure
+```json
+{
+  "projectName": "example-project",
+  "taskName": "ParseTestCaseToLlmContext",
+  "startTime": "2025-06-02T01:42:33",
+  "endTime": "2025-06-02T01:42:34", 
+  "durationMs": 1243,
+  "totalTestCases": 3,
+  "processedTestCases": 3,
+  "unresolvedInvocationCount": 2,
+  "unresolvedCases": [
+    {
+      "className": "com.example.SampleTest",
+      "methodName": "testWithUnresolvedCode",
+      "fileName": "/path/to/SampleTest.java",
+      "startLine": 14,
+      "endLine": 22,
+      "unresolvedCount": 2,
+      "unresolvedInvocations": [
+        "UNRESOLVED_CONSTRUCTOR: new SomeUnknownClass()#[17-17]",
+        "UNRESOLVED_INVOCATION: unknown.someMethod()#[18-18]"
+      ]
+    }
+  ],
+  "status": "COMPLETED"
+}
+```
+
+### 🎯 Use Cases
+- **Performance Monitoring**: Track analysis execution time across different projects
+- **Quality Assessment**: Identify test cases with resolution issues
+- **Problem Debugging**: Pinpoint exact locations of unresolved method calls
+- **Project Analytics**: Generate reports on test coverage and code quality
+
+## [1.2.2] - 2024-12-08
+
 ## [1.1.2] - 2024-05-30
 
 ### 🐛 Bug Fixes

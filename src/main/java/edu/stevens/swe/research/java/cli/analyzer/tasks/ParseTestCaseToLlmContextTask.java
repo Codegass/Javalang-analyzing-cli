@@ -9,6 +9,7 @@ import edu.stevens.swe.research.java.cli.analyzer.core.TestCaseAnalyzer;
 import edu.stevens.swe.research.java.cli.analyzer.spi.AnalyzerTask;
 import edu.stevens.swe.research.java.cli.analyzer.visitors.MethodVisitor;
 import edu.stevens.swe.research.java.parser.core.utils.exceptions.ProjectDetectionException;
+import edu.stevens.swe.research.java.cli.analyzer.LogData;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Annotation;
@@ -38,12 +39,14 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
         System.out.println("Executing task: " + TASK_NAME);
         AstParserUtil astParserUtil = new AstParserUtil(projectCtx);
         TestCaseAnalyzer testCaseAnalyzer = new TestCaseAnalyzer(astParserUtil, projectCtx);
+        LogData logData = projectCtx.getLogData(); // Get log data from project context
         Gson gson = new GsonBuilder()
             .setPrettyPrinting()
             .disableHtmlEscaping()
             .create();
         List<String> processedFiles = new ArrayList<>();
         int testCasesFound = 0;
+        int testCasesProcessed = 0;
 
         // Get output directory from ProjectCtx
         Path outputDir = projectCtx.getOutputDirectory();
@@ -64,6 +67,10 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
         List<Path> testSourceRoots = findAllTestDirectories(projectCtx.getProjectPath());
         if (testSourceRoots.isEmpty()) {
             System.out.println("No test source roots found in project: " + projectCtx.getProjectPath() + ". Skipping task.");
+            if (logData != null) {
+                logData.setTotalTestCases(0);
+                logData.setProcessedTestCases(0);
+            }
             return new TaskResult(projectCtx.getProjectPath().toString(), TASK_NAME + " [No test source roots found]");
         }
 
@@ -97,17 +104,38 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
                             if (isTestMethod(md)) {
                                 testCasesFound++;
                                 System.out.println("  Found test method: " + md.getName().getIdentifier());
-                                TestCaseAnalyzer.AnalysisResult analysisResult = testCaseAnalyzer.analyzeTestCase(cu, md, originalSource);
                                 
-                                String jsonFileName = analysisResult.getJsonFileName().replaceAll("[^a-zA-Z0-9.-]", "_") + ".json"; // Sanitize filename
-                                Path outputPath = outputDir.resolve(jsonFileName);
+                                try {
+                                    TestCaseAnalyzer.AnalysisResult analysisResult = testCaseAnalyzer.analyzeTestCase(cu, md, originalSource);
+                                    
+                                    // Check for unresolved invocations
+                                    List<String> unresolvedInvocations = findUnresolvedInvocations(analysisResult);
+                                    if (!unresolvedInvocations.isEmpty() && logData != null) {
+                                        String className = analysisResult.testClassName;
+                                        String methodName = analysisResult.testCaseName;
+                                        // Use relative path to avoid Windows path separator issues in JSON
+                                        String fileName = projectCtx.getProjectPath().relativize(javaFile).toString();
+                                        int startLine = cu.getLineNumber(md.getStartPosition());
+                                        int endLine = cu.getLineNumber(md.getStartPosition() + md.getLength() - 1);
+                                        
+                                        logData.addUnresolvedCase(className, methodName, fileName, startLine, endLine, unresolvedInvocations);
+                                        System.out.println("    Found " + unresolvedInvocations.size() + " unresolved invocations");
+                                    }
+                                    
+                                    // Enhanced filename sanitization for Windows compatibility
+                                    String jsonFileName = analysisResult.getJsonFileName().replaceAll("[^a-zA-Z0-9._-]", "_") + ".json";
+                                    Path outputPath = outputDir.resolve(jsonFileName);
 
-                                try (FileWriter writer = new FileWriter(outputPath.toFile())) {
-                                    gson.toJson(analysisResult, writer);
-                                    processedFiles.add(outputPath.toString());
-                                    System.out.println("    Successfully wrote: " + outputPath);
-                                } catch (IOException e) {
-                                    System.err.println("    Error writing JSON for " + analysisResult.getJsonFileName() + ": " + e.getMessage());
+                                    try (FileWriter writer = new FileWriter(outputPath.toFile())) {
+                                        gson.toJson(analysisResult, writer);
+                                        processedFiles.add(outputPath.toString());
+                                        testCasesProcessed++;
+                                        System.out.println("    Successfully wrote: " + outputPath);
+                                    } catch (IOException e) {
+                                        System.err.println("    Error writing JSON for " + analysisResult.getJsonFileName() + ": " + e.getMessage());
+                                    }
+                                } catch (Exception e) {
+                                    System.err.println("    Error analyzing test method " + md.getName().getIdentifier() + ": " + e.getMessage());
                                 }
                             }
                         }
@@ -118,6 +146,12 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
             } catch (IOException e) {
                 System.err.println("Error walking through test source files in " + testSourceRoot + ": " + e.getMessage());
             }
+        }
+
+        // Update log data with statistics
+        if (logData != null) {
+            logData.setTotalTestCases(testCasesFound);
+            logData.setProcessedTestCases(testCasesProcessed);
         }
 
         // TaskResult might need to be enhanced to store these details
@@ -242,5 +276,24 @@ public class ParseTestCaseToLlmContextTask implements AnalyzerTask {
         }
         
         return false;
+    }
+
+    /**
+     * Find unresolved invocations in the analysis result
+     */
+    private List<String> findUnresolvedInvocations(TestCaseAnalyzer.AnalysisResult analysisResult) {
+        List<String> unresolvedInvocations = new ArrayList<>();
+        
+        for (String statement : analysisResult.parsedStatementsSequence) {
+            if (statement.contains("UNRESOLVED_INVOCATION") || 
+                statement.contains("UNRESOLVED_CONSTRUCTOR") ||
+                statement.contains("UNRESOLVED_METHOD_REF") ||
+                statement.contains("METHOD_NOT_FOUND_IN_SOURCE") ||
+                statement.contains("SOURCE_FILE_NOT_FOUND")) {
+                unresolvedInvocations.add(statement);
+            }
+        }
+        
+        return unresolvedInvocations;
     }
 } 
